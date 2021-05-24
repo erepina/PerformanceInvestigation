@@ -1,0 +1,33 @@
+Issues on PrimeCalculator:
+
+1. Redundant data structure - BigIntegerIterator - wraps number and its string representation in 2 collections with high initial capacity which leads to memory problem.
+
+2. Throwing exceptions instead of returning boolean result in method isPrime, unnecessary memory allocations for arrays.
+
+3. Unnecessary use of synchronized block for primeNumbersToRemove - adding an element to SynchronizedList already has a mutex synchronization underneath.
+
+4. Marking primeNumbers as SynchronizedList as it's not being changed asynchronously.
+
+5. Implementing a naive algorithm to determine prime numbers.
+
+
+Observations after profiling the executions:
+
+100000 is the maximum order of magnitude of the input number when application works. 
+Increasing it 10 times leads to OutOfMemoryError exception after ~1 min of execution (BigIntegerIterator memory allocation.png, OutOfMemoryError.png, CPU usage.png):
+Used heap memory was 3.1 GB, but linear memory in heap was not found (issue related to the implementation of BigIntegerIterator, where based on increasing capacity Arrays.copyOf is called to create a new array).
+
+
+However the core problem of the initial implemenation is the choosen algorithm with quadratic time complexity.
+
+
+As a first attempt 2 different algorithms were implemented: sieve of Eratosthenes and linear one. The max order of magnitude became 100 000 000 and the program failed again.
+The problem now not with the number of operations an algorithm performs but with its memory requirements. 
+
+The solution is to parallelize execution by segmenting all the numbers till given N and examine them for prime numbers independently.
+The first segment is organized and processed in a special way. Based on a proven math theorem, divisors of number N could be found only in the area from 2 up to square root of N, thus these numbers form the first segment and the prime numbers are to be found by any algorithm.
+The rest (from square of N to N) is divided into segments and tested for prime numbers in a parallel manner with the help of the same math theorem and pre-calculated prime numbers for N.
+
+Executions outcome: 
+1 000 000 000 number is processed for ~80 sec.
+Memory leaks/issues are not observed.
